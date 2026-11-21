@@ -4,7 +4,7 @@ name: Unsigned IPA
 
 on:
   push:
-    branches: [deepseek-chat]
+    branches: [main]
     paths-ignore: ['**/*.md']
   workflow_dispatch:
 
