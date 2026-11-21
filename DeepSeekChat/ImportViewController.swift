@@ -63,7 +63,8 @@ final class ImportViewController: UIViewController {
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             barButtonSystemItem: .cancel, target: self, action: #selector(cancel))
         navigationItem.rightBarButtonItem = importItem
-        importItem.isEnabled = false
+        // 先放着可用：即使官网换了登录态存法，也能点进去让脚本报出具体原因
+        importItem.isEnabled = true
 
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         statusLabel.font = .preferredFont(forTextStyle: .footnote)
@@ -107,7 +108,6 @@ final class ImportViewController: UIViewController {
             if loggedIn {
                 self.loginTimer?.invalidate()
                 self.loginTimer = nil
-                self.importItem.isEnabled = true
                 if self.statusLabel.text?.hasPrefix("在这里登录") == true {
                     self.statusLabel.text = "已登录，可以点右上角「导入」了（只导入会话，不改动官网数据）"
                 }

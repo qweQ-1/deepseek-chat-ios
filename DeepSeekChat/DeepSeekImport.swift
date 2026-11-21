@@ -26,7 +26,7 @@ enum DeepSeekImport {
             return n > 1e12 ? Math.round(n) : Math.round(n * 1000);
           };
           var readToken = function () {
-            var keys = ['userToken', 'user_token', 'token'];
+            var keys = ['userToken', 'user_token', 'token', 'access_token'];
             for (var i = 0; i < keys.length; i++) {
               try {
                 var raw = localStorage.getItem(keys[i]);
@@ -39,6 +39,23 @@ enum DeepSeekImport {
                 if (raw.length > 10) { return raw; }
               } catch (e) {}
             }
+            // 兜底：扫一遍 localStorage，找形如 JWT 的值（官网改键名时不至于直接失败）
+            try {
+              for (var k = 0; k < localStorage.length; k++) {
+                var name = localStorage.key(k);
+                var text = localStorage.getItem(name) || '';
+                if (text.length < 40) { continue; }
+                var trimmed = text.trim();
+                if (/^[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}$/.test(trimmed)) {
+                  return trimmed;
+                }
+                try {
+                  var wrapper = JSON.parse(text);
+                  var inner = wrapper && (wrapper.value || wrapper.token || wrapper.access_token);
+                  if (typeof inner === 'string' && inner.length > 40) { return inner; }
+                } catch (e) {}
+              }
+            } catch (e) {}
             return null;
           };
 
@@ -207,8 +224,16 @@ enum DeepSeekImport {
     static let loginCheckScript = """
     (function () {
       try {
-        var raw = localStorage.getItem('userToken');
-        return !!(raw && raw.length > 10);
+        var keys = ['userToken', 'user_token', 'token', 'access_token'];
+        for (var i = 0; i < keys.length; i++) {
+          var raw = localStorage.getItem(keys[i]);
+          if (raw && raw.length > 10) { return true; }
+        }
+        for (var k = 0; k < localStorage.length; k++) {
+          var text = localStorage.getItem(localStorage.key(k)) || '';
+          if (text.length > 60 && text.indexOf('eyJ') !== -1) { return true; }
+        }
+        return false;
       } catch (e) { return false; }
     })()
     """
