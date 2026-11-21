@@ -22,6 +22,7 @@ struct SettingsView: View {
 
     private let firstRun: Bool
     private let onThemeChange: (AppTheme) -> Void
+    private let onImport: () -> Void
     private let onSave: (String, String) -> Void
     private let onCancel: () -> Void
     private let onModelsLoaded: ([String]) -> Void
@@ -34,6 +35,7 @@ struct SettingsView: View {
          theme: AppTheme,
          firstRun: Bool,
          onThemeChange: @escaping (AppTheme) -> Void,
+         onImport: @escaping () -> Void,
          onSave: @escaping (String, String) -> Void,
          onCancel: @escaping () -> Void,
          onModelsLoaded: @escaping ([String]) -> Void) {
@@ -43,6 +45,7 @@ struct SettingsView: View {
         _theme = State(initialValue: theme)
         self.firstRun = firstRun
         self.onThemeChange = onThemeChange
+        self.onImport = onImport
         self.onSave = onSave
         self.onCancel = onCancel
         self.onModelsLoaded = onModelsLoaded
@@ -180,6 +183,19 @@ struct SettingsView: View {
                     Text("外观")
                 } footer: {
                     Text("改完立刻预览。主题色会同步到设置页、启动图和状态栏。")
+                }
+
+                Section {
+                    Button {
+                        keyFocused = false
+                        onImport()
+                    } label: {
+                        Label("从 DeepSeek 官网导入聊天记录", systemImage: "square.and.arrow.down")
+                    }
+                } header: {
+                    Text("导入")
+                } footer: {
+                    Text("会打开 chat.deepseek.com 让你登录，然后读取你的历史会话并转存到本机。只读不改官网数据，会话较多时需要一会儿。")
                 }
 
                 Section {

@@ -308,6 +308,10 @@ final class RootViewController: UIViewController {
                 AppSettings.theme = theme
                 self?.applyThemeLive(theme)
             },
+            onImport: { [weak self] in
+                guard let self else { return }
+                self.dismiss(animated: true) { self.presentImport() }
+            },
             onSave: { [weak self] key, model in
                 guard let self else { return }
                 AppSettings.apiKey = key
@@ -337,6 +341,43 @@ final class RootViewController: UIViewController {
         }
         host.isModalInPresentation = firstRun
         present(host, animated: true)
+    }
+
+    // MARK: - 从官网导入
+
+    private func presentImport() {
+        let controller = ImportViewController()
+        controller.configure { [weak self] payload in
+            self?.handleImportPayload(payload)
+        }
+        let navigation = UINavigationController(rootViewController: controller)
+        present(navigation, animated: true)
+    }
+
+    private func handleImportPayload(_ payload: String) {
+        showSplash()
+        webView.evaluateJavaScript(DeepSeekImport.writeScript(payload: payload)) { [weak self] result, error in
+            guard let self else { return }
+            var message = "导入完成"
+            if let text = result as? String,
+               let data = text.data(using: .utf8),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                if (json["ok"] as? Bool) == true {
+                    let count = json["count"] as? Int ?? 0
+                    message = count > 0 ? "已导入 \(count) 个会话" : "官网没有可导入的会话"
+                } else {
+                    message = (json["error"] as? String) ?? "写入本地数据库失败"
+                }
+            } else if let error {
+                message = error.localizedDescription
+            }
+            self.applySettingsAndReload()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                let alert = UIAlertController(title: "导入结果", message: message, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "好", style: .default))
+                self.present(alert, animated: true)
+            }
+        }
     }
 
     // MARK: - 打开链接
