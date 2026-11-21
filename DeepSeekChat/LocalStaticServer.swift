@@ -57,7 +57,6 @@ final class LocalStaticServer {
     private func start(preferredPort: UInt16) throws {
         let parameters = NWParameters.tcp
         parameters.allowLocalEndpointReuse = true
-        parameters.acceptLocalOnly = true
 
         var failure: String?
         for candidate in [NWEndpoint.Port(rawValue: preferredPort) ?? .any, .any] {

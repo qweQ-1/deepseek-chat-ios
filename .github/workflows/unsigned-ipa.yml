@@ -40,8 +40,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m pip install --quiet --disable-pip-version-check pillow
-          python3 Tools/make_icons.py
+          python3 -m venv "$RUNNER_TEMP/iconenv"
+          "$RUNNER_TEMP/iconenv/bin/pip" install --quiet --disable-pip-version-check pillow
+          "$RUNNER_TEMP/iconenv/bin/python" Tools/make_icons.py
           ls -lh DeepSeekChat/Assets.xcassets/AppIcon.appiconset/
 
       - name: Generate project

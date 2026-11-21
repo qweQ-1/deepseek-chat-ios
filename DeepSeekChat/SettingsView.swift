@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// 原生设置：填 API Key、选模型。
 /// 页面本身也有设置面板，这里只是为了「第一次打开就能用」，以及随时能换模型。
