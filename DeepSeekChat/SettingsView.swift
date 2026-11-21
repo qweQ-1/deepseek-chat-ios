@@ -16,27 +16,33 @@ struct SettingsView: View {
     @State private var apiKey: String
     @State private var model: String
     @State private var models: [String]
+    @State private var theme: AppTheme
     @State private var status: Status = .idle
     @FocusState private var keyFocused: Bool
 
     private let firstRun: Bool
+    private let onThemeChange: (AppTheme) -> Void
     private let onSave: (String, String) -> Void
     private let onCancel: () -> Void
     private let onModelsLoaded: ([String]) -> Void
 
-    private let accent = Color(red: 0.30, green: 0.42, blue: 0.99)
+    private var accent: Color { Color(uiColor: theme.accentColor) }
 
     init(apiKey: String,
          model: String,
          models: [String],
+         theme: AppTheme,
          firstRun: Bool,
+         onThemeChange: @escaping (AppTheme) -> Void,
          onSave: @escaping (String, String) -> Void,
          onCancel: @escaping () -> Void,
          onModelsLoaded: @escaping ([String]) -> Void) {
         _apiKey = State(initialValue: apiKey)
         _model = State(initialValue: model)
         _models = State(initialValue: models.isEmpty ? AppSettings.fallbackModels : models)
+        _theme = State(initialValue: theme)
         self.firstRun = firstRun
+        self.onThemeChange = onThemeChange
         self.onSave = onSave
         self.onCancel = onCancel
         self.onModelsLoaded = onModelsLoaded
@@ -122,6 +128,61 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Picker("外观模式", selection: $theme.mode) {
+                        ForEach(AppTheme.Mode.allCases) { mode in
+                            Text(mode.label).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("主题色")
+                            .font(.subheadline)
+                        HStack(spacing: 14) {
+                            ForEach(AppTheme.palette, id: \.self) { hex in
+                                Circle()
+                                    .fill(Color(uiColor: Theme.color(hex: hex) ?? .systemBlue))
+                                    .frame(width: 28, height: 28)
+                                    .overlay(
+                                        Circle().strokeBorder(
+                                            Color.primary.opacity(theme.accentHex == hex ? 0.85 : 0.12),
+                                            lineWidth: theme.accentHex == hex ? 2 : 1)
+                                    )
+                                    .overlay(
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 12, weight: .bold))
+                                            .foregroundStyle(.white)
+                                            .opacity(theme.accentHex == hex ? 1 : 0)
+                                    )
+                                    .contentShape(Circle())
+                                    .onTapGesture { theme.accentHex = hex }
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+
+                    ColorPicker("自定义主题色",
+                                selection: Binding(
+                                    get: { Color(uiColor: theme.accentColor) },
+                                    set: { theme.accentHex = Theme.hex(from: $0) }),
+                                supportsOpacity: false)
+
+                    Picker("字体大小", selection: $theme.fontScale) {
+                        Text("小").tag(90)
+                        Text("标准").tag(100)
+                        Text("大").tag(110)
+                        Text("特大").tag(120)
+                    }
+                    .pickerStyle(.segmented)
+
+                    Toggle("背景带主题色调", isOn: $theme.tintBackground)
+                } header: {
+                    Text("外观")
+                } footer: {
+                    Text("改完立刻预览。主题色会同步到设置页、启动图和状态栏。")
+                }
+
+                Section {
                     Button {
                         keyFocused = false
                         onSave(trimmedKey, model)
@@ -158,6 +219,9 @@ struct SettingsView: View {
                 }
             }
             .scrollDismissesKeyboard(.interactively)
+            .onChange(of: theme) { newValue in
+                onThemeChange(newValue)
+            }
             .navigationTitle(firstRun ? "连接 DeepSeek" : "DeepSeek 设置")
             .navigationBarTitleDisplayMode(.inline)
         }

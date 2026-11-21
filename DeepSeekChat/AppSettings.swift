@@ -15,6 +15,23 @@ enum AppSettings {
         static let models = "deepseekchat.models"
         /// 是否已经走过一次引导，避免每次启动都弹原生设置
         static let onboarded = "deepseekchat.onboarded"
+        /// 外观（明暗 / 主题色 / 字号），JSON 存 UserDefaults
+        static let theme = "deepseekchat.theme"
+    }
+
+    static var theme: AppTheme {
+        get {
+            guard let data = UserDefaults.standard.data(forKey: Key.theme),
+                  let value = try? JSONDecoder().decode(AppTheme.self, from: data) else {
+                return .default
+            }
+            return value
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                UserDefaults.standard.set(data, forKey: Key.theme)
+            }
+        }
     }
 
     static var apiKey: String? {

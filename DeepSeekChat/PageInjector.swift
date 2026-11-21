@@ -9,10 +9,11 @@ import WebKit
 /// 3. 补上 `viewport-fit=cover`，让页面的 `env(safe-area-inset-*)` 在全面屏上生效。
 enum PageInjector {
 
-    static func userScript(apiKey: String?, model: String) -> WKUserScript {
+    static func userScript(apiKey: String?, model: String, theme: AppTheme) -> WKUserScript {
         let keyLiteral = jsString(apiKey)
         let modelLiteral = jsString(model)
         let source = """
+        \(Theme.bootstrapScript(theme))
         (function () {
           try {
             var KEY = \(keyLiteral);

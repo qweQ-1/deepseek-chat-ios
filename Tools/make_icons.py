@@ -1,17 +1,22 @@
 """生成 App 图标与启动页图形。
 
-注意：只在 CI（macOS runner）里跑。手机上跑 Pillow 画大图很容易把宿主 App 顶到内存上限，
-所以本地不要执行这个脚本。这里也不做超采样，直接按目标尺寸画，内存占用只有几 MB。
+素材：`Design/AppIcon-1024.png`（DeepSeek 官方 App 图标原图，1024×1024，无透明通道）。
+只做缩放/加圆角这类内存开销很小的操作 —— 手机上跑 Pillow 画超大图会把宿主 App 顶到内存上限，
+所以不要本地执行；CI 里跑一次即可。
+
+没有素材时退回到程序化绘制的蓝色渐变 + 白鲸鱼。
 """
 import os
+
 from PIL import Image, ImageDraw
 
-BASE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                    "DeepSeekChat", "Assets.xcassets")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = os.path.join(ROOT, "DeepSeekChat", "Assets.xcassets")
+SOURCE = os.path.join(ROOT, "Design", "AppIcon-1024.png")
 SIZE = 1024
+
 TOP = (86, 116, 255)
 BOTTOM = (54, 76, 214)
-BLUE = (77, 107, 254)
 
 
 def gradient(size, top, bottom):
@@ -27,50 +32,35 @@ def gradient(size, top, bottom):
     return img
 
 
-def draw_whale(size, color):
-    """白色鲸鱼剪影，画在透明层上。"""
-    layer = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
-    cx, cy = size * 0.48, size * 0.52
-    w, h = size * 0.56, size * 0.34
-
-    d.ellipse([cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2], fill=color)
-
-    tail = cx + w * 0.44
-    d.polygon([(tail, cy - size * 0.01),
-               (tail + size * 0.17, cy - size * 0.15),
-               (tail + size * 0.06, cy - size * 0.02)], fill=color)
-    d.polygon([(tail, cy + size * 0.02),
-               (tail + size * 0.17, cy + size * 0.16),
-               (tail + size * 0.06, cy + size * 0.03)], fill=color)
-
-    d.polygon([(cx - w * 0.06, cy + h * 0.30),
-               (cx - w * 0.20, cy + h * 0.58),
-               (cx + w * 0.09, cy + h * 0.34)], fill=color)
-
-    # 眼睛
-    er = size * 0.022
-    ex, ey = cx - w * 0.28, cy - h * 0.20
-    d.ellipse([ex - er, ey - er, ex + er, ey + er], fill=(0, 0, 0, 0))
-
-    # 嘴线
-    d.arc([cx - w * 0.44, cy - h * 0.05, cx + w * 0.02, cy + h * 0.66],
-          start=40, end=100, fill=(0, 0, 0, 0), width=max(2, int(size * 0.014)))
-    return layer
+def rounded(img, radius_ratio=0.2237):
+    """裁成圆角正方形（透明底），用于启动页上的品牌图形。"""
+    size = img.size[0]
+    mask = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(mask).rounded_rectangle(
+        [0, 0, size - 1, size - 1], radius=int(size * radius_ratio), fill=255)
+    out = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    out.paste(img.convert("RGBA"), (0, 0), mask)
+    return out
 
 
 def main():
     icon_dir = os.path.join(BASE, "AppIcon.appiconset")
     os.makedirs(icon_dir, exist_ok=True)
-    icon = gradient(SIZE, TOP, BOTTOM).convert("RGBA")
-    icon.alpha_composite(draw_whale(SIZE, (255, 255, 255, 255)))
-    icon.convert("RGB").save(os.path.join(icon_dir, "icon-1024.png"), optimize=True)
+
+    if os.path.exists(SOURCE):
+        art = Image.open(SOURCE).convert("RGB").resize((SIZE, SIZE), Image.LANCZOS)
+        print("source ->", SOURCE)
+    else:
+        art = gradient(SIZE, TOP, BOTTOM)
+        print("source -> fallback gradient")
+
+    # App Store 要求图标不含 alpha 通道
+    art.save(os.path.join(icon_dir, "icon-1024.png"), optimize=True)
     print("icon ->", os.path.join(icon_dir, "icon-1024.png"))
 
     splash_dir = os.path.join(BASE, "SplashMark.imageset")
     os.makedirs(splash_dir, exist_ok=True)
-    mark = Image.new("RGBA", (512, 512), (0, 0, 0, 0))
-    mark.alpha_composite(draw_whale(512, (255, 255, 255, 255)))
+    mark = rounded(art.resize((512, 512), Image.LANCZOS))
     mark.save(os.path.join(splash_dir, "splash-mark.png"), optimize=True)
     print("splash ->", os.path.join(splash_dir, "splash-mark.png"))
 

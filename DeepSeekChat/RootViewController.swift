@@ -23,6 +23,37 @@ final class RootViewController: UIViewController {
     private var didPresentSettingsForFirstRun = false
     private var isLoaded = false
 
+    private var theme: AppTheme { AppSettings.theme }
+
+    /// 当前实际是深色还是浅色（跟随系统时看真实 trait）
+    private var resolvedDark: Bool { Theme.isDarkResolved(theme, traits: traitCollection) }
+
+    private func applyNativeTheme() {
+        let background = Theme.nativeBackground(theme, isDark: resolvedDark)
+        view.backgroundColor = background
+        overrideUserInterfaceStyle = Theme.userInterfaceStyle(theme)
+        webView?.backgroundColor = .clear
+        webView?.underPageBackgroundColor = background
+        setNeedsStatusBarAppearanceUpdate()
+    }
+
+    override var preferredStatusBarStyle: UIStatusBarStyle {
+        resolvedDark ? .lightContent : .darkContent
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        if theme.mode == .system {
+            applyNativeTheme()
+        }
+    }
+
+    /// 设置页里调整外观后立刻生效，不用整页重载
+    private func applyThemeLive(_ newTheme: AppTheme) {
+        webView?.evaluateJavaScript(Theme.liveScript(newTheme), completionHandler: nil)
+        applyNativeTheme()
+    }
+
     // MARK: - 生命周期
 
     deinit {
@@ -31,15 +62,16 @@ final class RootViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
-        overrideUserInterfaceStyle = .unspecified
+        applyNativeTheme()
 
         container.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(container)
 
         bottomConstraint = container.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        // 顶部让开刘海 / 状态栏：官方前端只处理了 safe-area-bottom，
+        // 全屏铺满时它自己的顶栏会压在状态栏下面，新建聊天、菜单那几个按钮就点不到了。
         NSLayoutConstraint.activate([
-            container.topAnchor.constraint(equalTo: view.topAnchor),
+            container.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             container.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             container.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             bottomConstraint,
@@ -82,7 +114,7 @@ final class RootViewController: UIViewController {
         configuration.mediaTypesRequiringUserActionForPlayback = []
         configuration.suppressesIncrementalRendering = false
         configuration.userContentController.addUserScript(
-            PageInjector.userScript(apiKey: AppSettings.apiKey, model: AppSettings.model))
+            PageInjector.userScript(apiKey: AppSettings.apiKey, model: AppSettings.model, theme: AppSettings.theme))
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.translatesAutoresizingMaskIntoConstraints = false
@@ -130,7 +162,7 @@ final class RootViewController: UIViewController {
         let controller = webView.configuration.userContentController
         controller.removeAllUserScripts()
         controller.addUserScript(
-            PageInjector.userScript(apiKey: AppSettings.apiKey, model: AppSettings.model))
+            PageInjector.userScript(apiKey: AppSettings.apiKey, model: AppSettings.model, theme: AppSettings.theme))
         isLoaded = false
         showSplash()
         if let origin = server?.origin {
@@ -149,11 +181,14 @@ final class RootViewController: UIViewController {
 
         let splash = UIView()
         splash.translatesAutoresizingMaskIntoConstraints = false
-        splash.backgroundColor = UIColor(red: 0.30, green: 0.42, blue: 0.99, alpha: 1)
+        splash.backgroundColor = AppSettings.theme.accentColor
 
         let icon = UIImageView(image: UIImage(named: "SplashMark") ?? UIImage(systemName: "bubble.left.and.text.bubble.right.fill"))
         icon.tintColor = .white
         icon.contentMode = .scaleAspectFit
+        icon.layer.cornerRadius = 22
+        icon.layer.cornerCurve = .continuous
+        icon.clipsToBounds = true
         icon.translatesAutoresizingMaskIntoConstraints = false
 
         let label = UILabel()
@@ -267,7 +302,12 @@ final class RootViewController: UIViewController {
             apiKey: AppSettings.apiKey ?? "",
             model: AppSettings.model,
             models: AppSettings.knownModels,
+            theme: AppSettings.theme,
             firstRun: firstRun,
+            onThemeChange: { [weak self] theme in
+                AppSettings.theme = theme
+                self?.applyThemeLive(theme)
+            },
             onSave: { [weak self] key, model in
                 guard let self else { return }
                 AppSettings.apiKey = key
@@ -305,7 +345,7 @@ final class RootViewController: UIViewController {
         guard let scheme = url.scheme?.lowercased() else { return }
         if scheme == "http" || scheme == "https" {
             let safari = SFSafariViewController(url: url)
-            safari.preferredControlTintColor = UIColor(red: 0.30, green: 0.42, blue: 0.99, alpha: 1)
+            safari.preferredControlTintColor = AppSettings.theme.accentColor
             present(safari, animated: true)
         } else if scheme != "about" && scheme != "javascript" {
             UIApplication.shared.open(url)
