@@ -1,0 +1,8 @@
+.DS_Store
+build/
+dist/
+DerivedData/
+*.xcodeproj
+*.xcworkspace
+DeepSeekChat/Assets.xcassets/AppIcon.appiconset/*.png
+DeepSeekChat/Assets.xcassets/SplashMark.imageset/*.png
