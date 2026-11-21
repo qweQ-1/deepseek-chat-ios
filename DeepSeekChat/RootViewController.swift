@@ -22,6 +22,7 @@ final class RootViewController: UIViewController {
     private var server: LocalStaticServer?
     private var didPresentSettingsForFirstRun = false
     private var isLoaded = false
+    private var importPromptShownThisRun = false
 
     private var theme: AppTheme { AppSettings.theme }
 
@@ -197,9 +198,20 @@ final class RootViewController: UIViewController {
         label.textColor = .white
         label.font = .systemFont(ofSize: 26, weight: .semibold)
 
+        let pulse = CABasicAnimation(keyPath: "transform.scale")
+        pulse.fromValue = 1.0
+        pulse.toValue = 1.06
+        pulse.duration = 0.75
+        pulse.autoreverses = true
+        pulse.repeatCount = .infinity
+        pulse.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        icon.layer.add(pulse, forKey: "dsPulse")
+
         splash.addSubview(icon)
         splash.addSubview(label)
         view.addSubview(splash)
+        // 页面先藏在启动图后面，加载完再淡入，避免白屏一闪
+        webView.alpha = 0
         NSLayoutConstraint.activate([
             splash.topAnchor.constraint(equalTo: view.topAnchor),
             splash.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -218,7 +230,11 @@ final class RootViewController: UIViewController {
     private func hideSplash() {
         guard let splash = splashView else { return }
         splashView = nil
-        UIView.animate(withDuration: 0.25, animations: { splash.alpha = 0 }) { _ in
+        UIView.animate(withDuration: 0.35, delay: 0.12, options: [.curveEaseOut], animations: {
+            splash.alpha = 0
+            splash.transform = CGAffineTransform(scaleX: 1.02, y: 1.02)
+            self.webView.alpha = 1
+        }) { _ in
             splash.removeFromSuperview()
         }
     }
@@ -324,7 +340,9 @@ final class RootViewController: UIViewController {
             onCancel: { [weak self] in
                 guard let self else { return }
                 AppSettings.onboarded = true
-                self.dismiss(animated: true)
+                self.dismiss(animated: true) {
+                    self.maybePromptImport()
+                }
             },
             onModelsLoaded: { models in
                 AppSettings.knownModels = models
@@ -344,6 +362,26 @@ final class RootViewController: UIViewController {
     }
 
     // MARK: - 从官网导入
+
+    /// 还没导入过官网记录时，进 App 弹一次引导
+    private func maybePromptImport() {
+        guard !importPromptShownThisRun,
+              !AppSettings.importPromptShown,
+              presentedViewController == nil,
+              isLoaded else { return }
+        importPromptShownThisRun = true
+        AppSettings.importPromptShown = true
+
+        let alert = UIAlertController(
+            title: "导入官网聊天记录？",
+            message: "看起来还没有导入过历史会话。登录 DeepSeek 官网后，可以把你的聊天记录一键转存到本机，离线也能看。",
+            preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "现在导入", style: .default) { [weak self] _ in
+            self?.presentImport()
+        })
+        alert.addAction(UIAlertAction(title: "暂时不用", style: .cancel))
+        present(alert, animated: true)
+    }
 
     private func presentImport() {
         let controller = ImportViewController()
@@ -407,6 +445,7 @@ extension RootViewController: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         isLoaded = true
         hideSplash()
+        maybePromptImport()
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {

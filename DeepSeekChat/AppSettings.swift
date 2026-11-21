@@ -17,6 +17,14 @@ enum AppSettings {
         static let onboarded = "deepseekchat.onboarded"
         /// 外观（明暗 / 主题色 / 字号），JSON 存 UserDefaults
         static let theme = "deepseekchat.theme"
+        /// 首启时是否已经弹过「导入官网记录」的提示
+        static let importPromptShown = "deepseekchat.importPromptShown"
+    }
+
+    /// 首启导入引导只弹一次
+    static var importPromptShown: Bool {
+        get { UserDefaults.standard.bool(forKey: Key.importPromptShown) }
+        set { UserDefaults.standard.set(newValue, forKey: Key.importPromptShown) }
     }
 
     static var theme: AppTheme {

@@ -1,0 +1,46 @@
+name: DeepSeekChat
+options:
+  bundleIdPrefix: com.qweq-1
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    MARKETING_VERSION: "1.3.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+targets:
+  DeepSeekChat:
+    type: application
+    platform: iOS
+    sources:
+      - path: DeepSeekChat
+        excludes:
+          - "Info.plist"
+      - path: Web
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        INFOPLIST_FILE: DeepSeekChat/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.qweq-1.deepseekchat
+        PRODUCT_NAME: DeepSeekChat
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: ""
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: ""
+        DEVELOPMENT_TEAM: ""
+        ENABLE_BITCODE: NO
+schemes:
+  DeepSeekChat:
+    build:
+      targets:
+        DeepSeekChat: all
+    run:
+      config: Debug
+    archive:
+      config: Release
